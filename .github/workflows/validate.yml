@@ -1,0 +1,147 @@
+name: Validate Dataset
+
+on:
+  pull_request:
+  push:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install validation dependency
+        run: python -m pip install --disable-pip-version-check jsonschema
+
+      - name: Validate dataset integrity
+        run: |
+          python - <<'PY'
+          import json
+          import re
+          import sys
+          from pathlib import Path
+
+          from jsonschema import Draft202012Validator, FormatChecker
+
+          ROOT = Path(".")
+          SCHEMA_PATH = ROOT / "schema" / "schema.json"
+          DATA_ROOTS = [
+              ROOT / "youtube" / "recording",
+          ]
+          DISALLOWED_DATA_ROOTS = [
+              ROOT / "musicbrainz" / "recording",
+          ]
+
+          MBID_RE = re.compile(
+              r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+          )
+
+          errors = []
+
+          try:
+              schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+          except Exception as exc:
+              print(f"Failed to read schema file {SCHEMA_PATH}: {exc}")
+              sys.exit(1)
+
+          validator = Draft202012Validator(schema, format_checker=FormatChecker())
+
+          seen_by_namespace = {}
+          checked_files = 0
+
+          # This repository stores transport mappings only; it must not contain
+          # MusicBrainz metadata record files.
+          for disallowed_root in DISALLOWED_DATA_ROOTS:
+              if not disallowed_root.exists():
+                  continue
+              for disallowed_file in sorted(disallowed_root.rglob("*.json")):
+                  rel_path = disallowed_file.relative_to(ROOT)
+                  errors.append(
+                      f"{rel_path}: disallowed namespace; repository is transport-index-only"
+                  )
+
+          for data_root in DATA_ROOTS:
+              namespace = str(data_root.relative_to(ROOT))
+              seen_by_namespace[namespace] = {}
+
+              if not data_root.exists():
+                  continue
+
+              for file_path in sorted(data_root.rglob("*.json")):
+                  checked_files += 1
+                  rel_path = file_path.relative_to(ROOT)
+
+                  # 1) JSON syntax validity
+                  try:
+                      record = json.loads(file_path.read_text(encoding="utf-8"))
+                  except Exception as exc:
+                      errors.append(f"{rel_path}: invalid JSON ({exc})")
+                      continue
+
+                  # 2) Schema validation
+                  schema_issues = sorted(
+                      validator.iter_errors(record),
+                      key=lambda e: list(e.path),
+                  )
+                  for issue in schema_issues:
+                      path = ".".join(str(p) for p in issue.path) or "<root>"
+                      errors.append(f"{rel_path}: schema error at {path}: {issue.message}")
+
+                  # Skip path/MBID checks if top-level key is missing.
+                  mbid = record.get("recording_mbid")
+                  if not isinstance(mbid, str):
+                      errors.append(f"{rel_path}: missing or non-string recording_mbid")
+                      continue
+
+                  # 3) MBID consistency: UUID format + filename stem equality
+                  if not MBID_RE.fullmatch(mbid):
+                      errors.append(f"{rel_path}: recording_mbid is not a valid UUID: {mbid}")
+
+                  stem = file_path.stem
+                  if stem != mbid:
+                      errors.append(
+                          f"{rel_path}: filename stem '{stem}' does not match recording_mbid '{mbid}'"
+                      )
+
+                  # 4) Prefix shard validation
+                  # Expected shape: <dataset>/<entity>/<prefix>/<mbid>.json
+                  parts = rel_path.parts
+                  if len(parts) < 4:
+                      errors.append(
+                          f"{rel_path}: invalid path shape; expected <dataset>/<entity>/<prefix>/<mbid>.json"
+                      )
+                  else:
+                      prefix = parts[-2]
+                      expected_prefix = mbid[:2].lower()
+                      if prefix.lower() != expected_prefix:
+                          errors.append(
+                              f"{rel_path}: shard prefix '{prefix}' does not match first two MBID chars '{expected_prefix}'"
+                          )
+
+                  # 5) Duplicate prevention (within namespace)
+                  existing = seen_by_namespace[namespace].get(mbid)
+                  if existing is not None:
+                      errors.append(
+                          f"{rel_path}: duplicate recording_mbid '{mbid}' in namespace '{namespace}' "
+                          f"(already present at {existing})"
+                      )
+                  else:
+                      seen_by_namespace[namespace][mbid] = str(rel_path)
+
+          if errors:
+              print("Dataset validation failed:")
+              for err in errors:
+                  print(f"- {err}")
+              sys.exit(1)
+
+          print(f"Dataset validation passed. Checked {checked_files} JSON file(s).")
+          PY
+
+      - name: Check generated dataset stats
+        run: python scripts/generate_stats.py --check

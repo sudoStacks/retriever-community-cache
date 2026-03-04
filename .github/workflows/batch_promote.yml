@@ -1,0 +1,362 @@
+name: Batch Promote Proposals
+
+on:
+  schedule:
+    - cron: "17 3 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    env:
+      MAX_ISSUES_PER_RUN: "50"
+      MAX_RECORD_WRITES: "100"
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Collect trusted proposal issues
+        id: collect
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const maxIssues = Number(process.env.MAX_ISSUES_PER_RUN || "50");
+            const maxWrites = Number(process.env.MAX_RECORD_WRITES || "100");
+
+            const root = process.env.GITHUB_WORKSPACE;
+            const outDir = path.join(root, ".tmp");
+            fs.mkdirSync(outDir, { recursive: true });
+
+            const allowPath = path.join(root, ".github", "trusted_publishers.txt");
+            const allowRaw = fs.existsSync(allowPath) ? fs.readFileSync(allowPath, "utf8") : "";
+            const allowSet = new Set(
+              allowRaw
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .filter((s) => s && !s.startsWith("#"))
+            );
+
+            function parseProposalBody(body) {
+              if (!body) return { ok: false, reason: "empty_issue_body" };
+
+              const markerMatch = body.match(/<!--\s*proposal:start\s*-->([\s\S]*?)<!--\s*proposal:end\s*-->/i);
+              const fencedMatch = body.match(/```json\s*([\s\S]*?)```/i);
+              const payload = markerMatch ? markerMatch[1] : (fencedMatch ? fencedMatch[1] : null);
+              if (!payload) return { ok: false, reason: "missing_proposal_json_block" };
+
+              try {
+                const parsed = JSON.parse(payload.trim());
+                if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+                  return { ok: false, reason: "proposal_json_must_be_object" };
+                }
+                return { ok: true, proposal: parsed };
+              } catch (err) {
+                return { ok: false, reason: "invalid_proposal_json" };
+              }
+            }
+
+            const accepted = [];
+            const failures = [];
+
+            const issues = await github.paginate(github.rest.issues.listForRepo, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: "open",
+              labels: "proposal",
+              per_page: 100,
+              sort: "created",
+              direction: "asc"
+            });
+
+            const considered = issues.slice(0, maxIssues);
+            for (const issue of considered) {
+              const login = issue.user?.login || "";
+              if (!allowSet.has(login)) {
+                failures.push({
+                  issue_number: issue.number,
+                  reason: "untrusted_publisher",
+                  publisher: login
+                });
+                continue;
+              }
+
+              const parsed = parseProposalBody(issue.body || "");
+              if (!parsed.ok) {
+                failures.push({
+                  issue_number: issue.number,
+                  reason: parsed.reason,
+                  publisher: login
+                });
+                continue;
+              }
+
+              if (accepted.length >= maxWrites) {
+                break;
+              }
+
+              accepted.push({
+                issue_number: issue.number,
+                publisher: login,
+                line_no: accepted.length + 1,
+                proposal: parsed.proposal
+              });
+            }
+
+            const jsonlPath = path.join(outDir, "trusted-batch.jsonl");
+            const lines = accepted.map((entry) => JSON.stringify(entry.proposal));
+            fs.writeFileSync(jsonlPath, lines.length ? `${lines.join("\n")}\n` : "", "utf8");
+
+            const meta = {
+              max_issues_per_run: maxIssues,
+              max_record_writes: maxWrites,
+              accepted,
+              failures
+            };
+            fs.writeFileSync(
+              path.join(outDir, "trusted-batch-meta.json"),
+              `${JSON.stringify(meta, null, 2)}\n`,
+              "utf8"
+            );
+
+            core.setOutput("accepted_count", String(accepted.length));
+            core.setOutput("failure_count", String(failures.length));
+            core.setOutput("batch_path", ".tmp/trusted-batch.jsonl");
+            core.setOutput("meta_path", ".tmp/trusted-batch-meta.json");
+
+      - name: Promote trusted proposals
+        id: promote
+        run: |
+          python - <<'PY'
+          import json
+          import os
+          import re
+          import subprocess
+          import sys
+          from collections import Counter
+          from pathlib import Path
+
+          root = Path(".")
+          meta_path = root / ".tmp" / "trusted-batch-meta.json"
+          batch_path = root / ".tmp" / "trusted-batch.jsonl"
+          outcome_path = root / ".tmp" / "trusted-batch-outcome.json"
+
+          meta = json.loads(meta_path.read_text(encoding="utf-8"))
+          accepted = meta.get("accepted", [])
+          extraction_failures = meta.get("failures", [])
+
+          added = 0
+          updated = 0
+          skipped = 0
+          skipped_by_line = {}
+          skipped_reasons = Counter()
+          stdout_text = ""
+
+          if accepted:
+            proc = subprocess.run(
+              ["python", "scripts/promote_proposals.py", str(batch_path)],
+              text=True,
+              capture_output=True,
+              check=False,
+            )
+            stdout_text = proc.stdout or ""
+            sys.stdout.write(stdout_text)
+            if proc.stderr:
+              sys.stderr.write(proc.stderr)
+
+            if proc.returncode != 0:
+              print("Promotion command failed.", file=sys.stderr)
+              sys.exit(proc.returncode)
+
+            for line in stdout_text.splitlines():
+              m = re.match(r"^- added: (\d+)$", line.strip())
+              if m:
+                added = int(m.group(1))
+              m = re.match(r"^- updated: (\d+)$", line.strip())
+              if m:
+                updated = int(m.group(1))
+              m = re.match(r"^- skipped: (\d+)$", line.strip())
+              if m:
+                skipped = int(m.group(1))
+
+              m = re.match(r"^\[skip\]\s+.+:(\d+):\s+(.+)$", line.strip())
+              if m:
+                reason = m.group(2)
+                skipped_by_line[int(m.group(1))] = reason
+                skipped_reasons[reason] += 1
+
+              m = re.match(r"^\s*-\s+([a-zA-Z0-9_:-]+):\s+(\d+)$", line.rstrip())
+              if m:
+                skipped_reasons[m.group(1)] += int(m.group(2))
+
+          writes = added + updated
+          if writes > 0:
+            subprocess.run(
+              ["python", "scripts/generate_stats.py", "--write"],
+              check=True,
+            )
+
+          success_issues = []
+          promotion_failures = []
+          for entry in accepted:
+            line_no = entry["line_no"]
+            issue_number = entry["issue_number"]
+            if line_no in skipped_by_line:
+              promotion_failures.append(
+                {
+                  "issue_number": issue_number,
+                  "reason": f"promote_skipped:{skipped_by_line[line_no]}",
+                }
+              )
+            else:
+              success_issues.append(issue_number)
+
+          all_failures = extraction_failures + promotion_failures
+
+          changed = subprocess.run(
+            ["git", "diff", "--quiet", "--", "youtube/recording", "youtube/video", "stats/dataset.json"],
+            check=False,
+          ).returncode != 0
+
+          outcome = {
+            "added": added,
+            "updated": updated,
+            "skipped": skipped,
+            "skipped_reasons": dict(sorted(skipped_reasons.items())),
+            "writes": writes,
+            "success_issues": success_issues,
+            "failures": all_failures,
+            "changed": changed,
+          }
+          outcome_path.write_text(json.dumps(outcome, indent=2) + "\n", encoding="utf-8")
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+            fh.write(f"writes={writes}\n")
+            fh.write(f"added={added}\n")
+            fh.write(f"updated={updated}\n")
+            fh.write(f"skipped={skipped}\n")
+            fh.write(f"changed={'true' if changed else 'false'}\n")
+            fh.write(f"success_issue_count={len(success_issues)}\n")
+            fh.write(f"failure_count={len(all_failures)}\n")
+            fh.write(f"skip_reasons_json={json.dumps(dict(sorted(skipped_reasons.items())), separators=(',', ':'))}\n")
+          PY
+
+      - name: Create promotion PR
+        id: cpr
+        if: steps.promote.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: bot/trusted-batch-promotion/${{ github.run_id }}
+          delete-branch: true
+          commit-message: "chore(dataset): promote trusted proposal batch"
+          title: "Trusted batch promotion: +${{ steps.promote.outputs.added }} updated:${{ steps.promote.outputs.updated }} skipped:${{ steps.promote.outputs.skipped }}"
+          body: |
+            Automated trusted proposal batch promotion.
+
+            - Added: ${{ steps.promote.outputs.added }}
+            - Updated: ${{ steps.promote.outputs.updated }}
+            - Skipped: ${{ steps.promote.outputs.skipped }}
+            - Successful issues: ${{ steps.promote.outputs.success_issue_count }}
+            - Failed issues: ${{ steps.promote.outputs.failure_count }}
+            - Skip reasons: `${{ steps.promote.outputs.skip_reasons_json }}`
+
+            Generated via `.github/workflows/batch_promote.yml`.
+
+      - name: Enable PR auto-merge
+        if: steps.cpr.outputs.pull-request-number != ''
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --auto --squash "${{ steps.cpr.outputs.pull-request-number }}"
+
+      - name: Update proposal issues
+        if: always()
+        uses: actions/github-script@v7
+        env:
+          PR_URL: ${{ steps.cpr.outputs.pull-request-url }}
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            const outPath = path.join(process.env.GITHUB_WORKSPACE, ".tmp", "trusted-batch-outcome.json");
+            if (!fs.existsSync(outPath)) {
+              core.info("No outcome file present; nothing to update.");
+              return;
+            }
+            const outcome = JSON.parse(fs.readFileSync(outPath, "utf8"));
+            const prUrl = process.env.PR_URL || "";
+
+            const successIssues = outcome.success_issues || [];
+            const failures = outcome.failures || [];
+
+            for (const issueNumber of successIssues) {
+              if (!prUrl) {
+                await github.rest.issues.createComment({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  body: "Trusted batch promotion processed this proposal, but no PR was created because no dataset changes were produced."
+                });
+                await github.rest.issues.update({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  issue_number: issueNumber,
+                  state: "closed"
+                });
+                continue;
+              }
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `Processed in trusted batch promotion PR: ${prUrl}`
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: "closed"
+              });
+            }
+
+            for (const item of failures) {
+              const issueNumber = item.issue_number;
+              const reason = item.reason || "unknown_failure";
+
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                labels: ["needs-attention"]
+              });
+
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: `Trusted batch promotion could not process this proposal: \`${reason}\`. Please update and retry.`
+              });
+
+              await github.rest.issues.update({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                state: "closed"
+              });
+            }

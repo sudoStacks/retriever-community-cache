@@ -7,6 +7,7 @@ Requirements:
 	•	Public media page identifier
 	•	Duration closely matches recording
 	•	Prefer official artist or label uploads
+	•	Transport mapping data only (do not submit MusicBrainz metadata copies)
 
 Preferred sources:
 	•	Official artist channels

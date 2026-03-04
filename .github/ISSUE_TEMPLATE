@@ -1,11 +1,28 @@
-Submit Mapping
-recording_mbid:
-youtube_video_url:
-duration:
-notes:
+Proposal Submission
 
-Report Broken Entry
-recording_mbid:
-video_id:
-problem:
+Use this template for trusted batch promotion proposals.
+Required label: `proposal`
 
+Publisher GitHub username:
+
+<!-- proposal:start -->
+{
+  "recording_mbid": "",
+  "type": "youtube",
+  "video_id": "",
+  "duration_ms": 0,
+  "confidence": 0.0,
+  "verified_at": "YYYY-MM-DD",
+  "channel_type": "official",
+  "provenance": {
+    "producer": "retreivr",
+    "producer_version": "",
+    "run_id": "",
+    "evidence": [
+      ""
+    ]
+  }
+}
+<!-- proposal:end -->
+
+Notes:
