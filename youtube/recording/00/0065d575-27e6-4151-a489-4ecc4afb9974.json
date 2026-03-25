@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "0065d575-27e6-4151-a489-4ecc4afb9974",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "LiMlNVInfMQ",
+      "candidate_url": "https://www.youtube.com/watch?v=LiMlNVInfMQ",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 227448,
+      "last_verified_at": "2026-03-25T18:42:38+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "LiMlNVInfMQ"
+    }
+  ],
+  "updated_at": "2026-03-25T20:22:45+00:00"
+}
