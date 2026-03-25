@@ -1,8 +1,9 @@
-# Proposal Workflow (Human-Gated)
+# Proposal Workflow (Legacy / Optional)
 
 This directory is for candidate mappings produced from verified acquisition outcomes before any dataset inclusion.
+It is now a legacy or optional path. The primary Retreivr publisher path is direct dataset branch publication plus trusted-PR validation and auto-merge.
 
-No files in `proposals/` are treated as canonical dataset records, and no automation in this repository writes directly to `main` outside pull requests.
+No files in `proposals/` are treated as canonical dataset records.
 
 ## Directory Layout
 
@@ -74,12 +75,8 @@ If markers are missing, automation falls back to the first fenced `json` code bl
 
 - Proposals are candidate records only.
 - Proposal files are syntax-validated in CI, but not schema-validated as canonical dataset entries.
-- Maintainers must manually review and promote accepted entries into:
-  - `youtube/recording/<prefix>/<recording_mbid>.json`
-- Reverse index files under `youtube/video/<prefix>/<video_id>.json` are generated automatically by `scripts/promote_proposals.py`.
-- Reverse index files must not be edited manually.
-- Promotion must happen via pull request.
-- No scheduled or bot-driven auto-write to `main`.
+- Maintainers may still review and promote accepted entries into dataset files via pull request.
+- The primary automated path is now direct trusted publisher PRs that modify dataset files and pass CI.
 
 ## Deterministic Safety Guarantees
 
@@ -179,3 +176,9 @@ Behavior:
 - Local proposal `.jsonl` files are submitted as GitHub Issues labeled `proposal`.
 - GitHub Actions batch-promotes accepted proposals into the dataset.
 - Successfully submitted files are moved to `<outbox>/submitted/`.
+
+Preferred path for automated publishers:
+
+- Retreivr writes canonical dataset files to a trusted branch directly.
+- CI validates the dataset contract.
+- Trusted same-repo PRs can be auto-merged once checks pass.

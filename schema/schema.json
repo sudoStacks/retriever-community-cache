@@ -8,6 +8,7 @@
   "required": [
     "schema_version",
     "recording_mbid",
+    "updated_at",
     "sources"
   ],
   "properties": {
@@ -20,6 +21,11 @@
       "type": "string",
       "description": "MusicBrainz recording MBID (UUID).",
       "pattern": "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+    },
+    "updated_at": {
+      "type": "string",
+      "description": "Last time this record was updated by a publisher.",
+      "format": "date-time"
     },
     "sources": {
       "type": "array",
@@ -35,15 +41,13 @@
       "type": "object",
       "additionalProperties": false,
       "required": [
-        "type",
         "video_id",
-        "duration_ms",
+        "source",
         "confidence",
-        "verified_at",
-        "channel_type"
+        "last_verified_at"
       ],
       "properties": {
-        "type": {
+        "source": {
           "type": "string",
           "enum": [
             "youtube"
@@ -60,25 +64,44 @@
           "minimum": 1,
           "maximum": 7200000
         },
+        "candidate_url": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "candidate_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "confidence": {
           "type": "number",
           "minimum": 0,
           "maximum": 1
         },
-        "verified_at": {
+        "duration_delta_ms": {
+          "type": [
+            "integer",
+            "null"
+          ]
+        },
+        "retreivr_version": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "last_verified_at": {
           "type": "string",
           "description": "Date this source mapping was last verified.",
-          "format": "date",
-          "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}$"
+          "format": "date-time"
         },
-        "channel_type": {
-          "type": "string",
-          "enum": [
-            "official",
-            "label",
-            "vevo",
-            "topic",
-            "unknown"
+        "verified_by": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       }

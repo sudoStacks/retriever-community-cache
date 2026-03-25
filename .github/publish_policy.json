@@ -1,0 +1,10 @@
+{
+  "minimum_confidence": 0.74,
+  "allowed_sources": [
+    "youtube"
+  ],
+  "trusted_branch_prefixes": [
+    "retreivr-community-publish/",
+    "retreivr-community-cache-publish/"
+  ]
+}

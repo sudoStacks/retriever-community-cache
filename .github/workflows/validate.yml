@@ -25,17 +25,16 @@ jobs:
           import json
           import re
           import sys
-          from datetime import date
           from pathlib import Path
 
           from jsonschema import Draft202012Validator, FormatChecker
 
           ROOT = Path(".")
           SCHEMA_PATH = ROOT / "schema" / "schema.json"
+          POLICY_PATH = ROOT / ".github" / "publish_policy.json"
           DATA_ROOTS = [
               ROOT / "youtube" / "recording",
           ]
-          REVERSE_ROOT = ROOT / "youtube" / "video"
           DISALLOWED_DATA_ROOTS = [
               ROOT / "musicbrainz" / "recording",
           ]
@@ -44,7 +43,6 @@ jobs:
               r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
           )
           VIDEO_ID_RE = re.compile(r"^[A-Za-z0-9_-]{11}$")
-          DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
           errors = []
 
@@ -53,27 +51,23 @@ jobs:
           except Exception as exc:
               print(f"Failed to read schema file {SCHEMA_PATH}: {exc}")
               sys.exit(1)
+          try:
+              policy = json.loads(POLICY_PATH.read_text(encoding="utf-8"))
+          except Exception as exc:
+              print(f"Failed to read publish policy file {POLICY_PATH}: {exc}")
+              sys.exit(1)
 
           validator = Draft202012Validator(schema, format_checker=FormatChecker())
+          min_confidence = float(policy.get("minimum_confidence", 0.0))
+          allowed_sources = {
+              str(item).strip()
+              for item in policy.get("allowed_sources", [])
+              if str(item).strip()
+          } or {"youtube"}
 
           seen_by_namespace = {}
-          checked_forward_files = 0
-          checked_reverse_files = 0
-          forward_sources_by_mbid = {}
+          checked_files = 0
 
-          def is_valid_iso_date(value):
-              if not isinstance(value, str):
-                  return False
-              if not DATE_RE.fullmatch(value):
-                  return False
-              try:
-                  date.fromisoformat(value)
-              except ValueError:
-                  return False
-              return True
-
-          # This repository stores transport mappings only; it must not contain
-          # MusicBrainz metadata record files.
           for disallowed_root in DISALLOWED_DATA_ROOTS:
               if not disallowed_root.exists():
                   continue
@@ -91,17 +85,15 @@ jobs:
                   continue
 
               for file_path in sorted(data_root.rglob("*.json")):
-                  checked_forward_files += 1
+                  checked_files += 1
                   rel_path = file_path.relative_to(ROOT)
 
-                  # 1) JSON syntax validity
                   try:
                       record = json.loads(file_path.read_text(encoding="utf-8"))
                   except Exception as exc:
                       errors.append(f"{rel_path}: invalid JSON ({exc})")
                       continue
 
-                  # 2) Schema validation
                   schema_issues = sorted(
                       validator.iter_errors(record),
                       key=lambda e: list(e.path),
@@ -110,13 +102,11 @@ jobs:
                       path = ".".join(str(p) for p in issue.path) or "<root>"
                       errors.append(f"{rel_path}: schema error at {path}: {issue.message}")
 
-                  # Skip path/MBID checks if top-level key is missing.
                   mbid = record.get("recording_mbid")
                   if not isinstance(mbid, str):
                       errors.append(f"{rel_path}: missing or non-string recording_mbid")
                       continue
 
-                  # 3) MBID consistency: UUID format + filename stem equality
                   if not MBID_RE.fullmatch(mbid):
                       errors.append(f"{rel_path}: recording_mbid is not a valid UUID: {mbid}")
 
@@ -126,8 +116,6 @@ jobs:
                           f"{rel_path}: filename stem '{stem}' does not match recording_mbid '{mbid}'"
                       )
 
-                  # 4) Prefix shard validation
-                  # Expected shape: <dataset>/<entity>/<prefix>/<mbid>.json
                   parts = rel_path.parts
                   if len(parts) < 4:
                       errors.append(
@@ -141,7 +129,6 @@ jobs:
                               f"{rel_path}: shard prefix '{prefix}' does not match first two MBID chars '{expected_prefix}'"
                           )
 
-                  # 5) Duplicate prevention (within namespace)
                   existing = seen_by_namespace[namespace].get(mbid)
                   if existing is not None:
                       errors.append(
@@ -151,116 +138,32 @@ jobs:
                   else:
                       seen_by_namespace[namespace][mbid] = str(rel_path)
 
-                  # Build forward index for reverse consistency checks.
                   sources = record.get("sources")
                   if isinstance(sources, list):
-                      video_ids = set()
-                      for item in sources:
+                      seen_video_ids = set()
+                      for idx, item in enumerate(sources):
                           if not isinstance(item, dict):
-                              continue
-                          if item.get("type") != "youtube":
+                              errors.append(f"{rel_path}: sources[{idx}] must be an object")
                               continue
                           video_id = item.get("video_id")
-                          if isinstance(video_id, str):
-                              video_ids.add(video_id)
-                      forward_sources_by_mbid[mbid.lower()] = video_ids
-
-          # Reverse index validation: youtube/video/<prefix>/<video_id>.json
-          seen_reverse_video_ids = {}
-          if REVERSE_ROOT.exists():
-              for reverse_path in sorted(REVERSE_ROOT.rglob("*.json")):
-                  checked_reverse_files += 1
-                  rel_path = reverse_path.relative_to(ROOT)
-
-                  try:
-                      reverse_record = json.loads(reverse_path.read_text(encoding="utf-8"))
-                  except Exception as exc:
-                      errors.append(f"{rel_path}: invalid JSON ({exc})")
-                      continue
-
-                  if not isinstance(reverse_record, dict):
-                      errors.append(f"{rel_path}: reverse entry must be an object")
-                      continue
-
-                  required_keys = {"video_id", "recording_mbid", "confidence", "verified_at"}
-                  unknown_keys = set(reverse_record.keys()) - required_keys
-                  missing_keys = required_keys - set(reverse_record.keys())
-                  if missing_keys:
-                      errors.append(
-                          f"{rel_path}: reverse entry missing required keys: {sorted(missing_keys)}"
-                      )
-                  if unknown_keys:
-                      errors.append(
-                          f"{rel_path}: reverse entry has unknown keys: {sorted(unknown_keys)}"
-                      )
-
-                  video_id = reverse_record.get("video_id")
-                  mbid = reverse_record.get("recording_mbid")
-                  confidence = reverse_record.get("confidence")
-                  verified_at = reverse_record.get("verified_at")
-
-                  if not isinstance(video_id, str) or not VIDEO_ID_RE.fullmatch(video_id):
-                      errors.append(f"{rel_path}: invalid video_id '{video_id}'")
-                      continue
-
-                  # 1) Path structure and shard prefix checks.
-                  parts = rel_path.parts
-                  if len(parts) < 4:
-                      errors.append(
-                          f"{rel_path}: invalid path shape; expected youtube/video/<prefix>/<video_id>.json"
-                      )
-                  else:
-                      prefix = parts[-2]
-                      expected_prefix = video_id[:2].lower()
-                      if prefix.lower() != expected_prefix:
-                          errors.append(
-                              f"{rel_path}: shard prefix '{prefix}' does not match first two video_id chars '{expected_prefix}'"
-                          )
-
-                  stem = reverse_path.stem
-                  if stem != video_id:
-                      errors.append(
-                          f"{rel_path}: filename stem '{stem}' does not match video_id '{video_id}'"
-                      )
-
-                  # 4) Duplicate protection in reverse namespace.
-                  existing = seen_reverse_video_ids.get(video_id)
-                  if existing is not None:
-                      errors.append(
-                          f"{rel_path}: duplicate video_id '{video_id}' in reverse index "
-                          f"(already present at {existing})"
-                      )
-                  else:
-                      seen_reverse_video_ids[video_id] = str(rel_path)
-
-                  # 2) Reverse entry field validation.
-                  if not isinstance(mbid, str) or not MBID_RE.fullmatch(mbid):
-                      errors.append(f"{rel_path}: invalid recording_mbid '{mbid}'")
-                      continue
-
-                  if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
-                      errors.append(f"{rel_path}: confidence must be a number in [0, 1]")
-                  elif not (0 <= float(confidence) <= 1):
-                      errors.append(f"{rel_path}: confidence out of range [0, 1]: {confidence}")
-
-                  if not is_valid_iso_date(verified_at):
-                      errors.append(f"{rel_path}: verified_at must be a valid YYYY-MM-DD date")
-
-                  # 3) Cross-index consistency with forward records.
-                  normalized_mbid = mbid.lower()
-                  expected_forward = ROOT / "youtube" / "recording" / normalized_mbid[:2] / f"{normalized_mbid}.json"
-                  if not expected_forward.exists():
-                      errors.append(
-                          f"{rel_path}: forward record not found for recording_mbid '{mbid}' "
-                          f"at {expected_forward.relative_to(ROOT)}"
-                      )
-                      continue
-
-                  forward_video_ids = forward_sources_by_mbid.get(normalized_mbid)
-                  if forward_video_ids is None or video_id not in forward_video_ids:
-                      errors.append(
-                          f"{rel_path}: video_id '{video_id}' not found in forward record sources for '{mbid}'"
-                      )
+                          if not isinstance(video_id, str) or not VIDEO_ID_RE.fullmatch(video_id):
+                              errors.append(f"{rel_path}: invalid video_id in sources[{idx}] '{video_id}'")
+                              continue
+                          if video_id in seen_video_ids:
+                              errors.append(f"{rel_path}: duplicate video_id '{video_id}' inside sources[]")
+                          seen_video_ids.add(video_id)
+                          source = item.get("source")
+                          if source not in allowed_sources:
+                              errors.append(
+                                  f"{rel_path}: unsupported source in sources[{idx}] '{source}'"
+                              )
+                          confidence = item.get("confidence")
+                          if isinstance(confidence, bool) or not isinstance(confidence, (int, float)):
+                              errors.append(f"{rel_path}: confidence in sources[{idx}] must be numeric")
+                          elif float(confidence) < min_confidence:
+                              errors.append(
+                                  f"{rel_path}: confidence {confidence} in sources[{idx}] is below minimum {min_confidence}"
+                              )
 
           if errors:
               print("Dataset validation failed:")
@@ -268,12 +171,7 @@ jobs:
                   print(f"- {err}")
               sys.exit(1)
 
-          total_checked = checked_forward_files + checked_reverse_files
-          print(
-              "Dataset validation passed. "
-              f"Checked {checked_forward_files} forward and {checked_reverse_files} reverse JSON file(s) "
-              f"({total_checked} total)."
-          )
+          print(f"Dataset validation passed. Checked {checked_files} dataset JSON file(s).")
           PY
 
       - name: Check generated dataset stats

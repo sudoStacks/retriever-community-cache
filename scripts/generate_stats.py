@@ -71,7 +71,9 @@ def compute_stats() -> dict:
                 unique_recordings.add(mbid)
 
             for source in record.get("sources", []):
-                if isinstance(source, dict) and source.get("type") == "youtube":
+                if isinstance(source, dict) and (
+                    source.get("source") == "youtube" or source.get("type") == "youtube"
+                ):
                     youtube_sources += 1
 
     return {

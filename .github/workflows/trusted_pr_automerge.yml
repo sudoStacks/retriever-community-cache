@@ -1,0 +1,74 @@
+name: Trusted PR Auto-Merge
+
+on:
+  pull_request_target:
+    types:
+      - opened
+      - reopened
+      - synchronize
+      - ready_for_review
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  auto-merge:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout base repo metadata
+        uses: actions/checkout@v4
+
+      - name: Decide whether PR is trusted
+        id: trust
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const path = require("path");
+
+            const pr = context.payload.pull_request;
+            if (!pr) {
+              core.setOutput("trusted", "false");
+              return;
+            }
+            if (pr.draft) {
+              core.setOutput("trusted", "false");
+              return;
+            }
+            if ((pr.head?.repo?.full_name || "") !== (pr.base?.repo?.full_name || "")) {
+              core.setOutput("trusted", "false");
+              return;
+            }
+
+            const allowPath = path.join(process.env.GITHUB_WORKSPACE, ".github", "trusted_publishers.txt");
+            const allowRaw = fs.existsSync(allowPath) ? fs.readFileSync(allowPath, "utf8") : "";
+            const allowSet = new Set(
+              allowRaw
+                .split(/\r?\n/)
+                .map((s) => s.trim())
+                .filter((s) => s && !s.startsWith("#"))
+            );
+            const policyPath = path.join(process.env.GITHUB_WORKSPACE, ".github", "publish_policy.json");
+            const policy = fs.existsSync(policyPath)
+              ? JSON.parse(fs.readFileSync(policyPath, "utf8"))
+              : {};
+            const allowedPrefixes = Array.isArray(policy.trusted_branch_prefixes)
+              ? policy.trusted_branch_prefixes
+                  .map((s) => String(s || "").trim())
+                  .filter(Boolean)
+              : [];
+
+            const author = String(pr.user?.login || "").trim();
+            const headRef = String(pr.head?.ref || "").trim();
+            const prefixOk =
+              allowedPrefixes.length === 0 || allowedPrefixes.some((prefix) => headRef.startsWith(prefix));
+            const trusted = allowSet.has(author) && headRef.length > 0 && prefixOk;
+            core.setOutput("trusted", trusted ? "true" : "false");
+            core.setOutput("pr_number", String(pr.number));
+
+      - name: Enable auto-merge
+        if: steps.trust.outputs.trusted == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh pr merge --repo "${{ github.repository }}" --auto --squash "${{ steps.trust.outputs.pr_number }}"
