@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "9fe8a78c-78b2-40ef-a89e-df70a093fa9c",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "ogiGIMW_uVE",
+      "candidate_url": "https://www.youtube.com/watch?v=ogiGIMW_uVE",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 226872,
+      "last_verified_at": "2026-03-25T18:38:17+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "ogiGIMW_uVE"
+    }
+  ],
+  "updated_at": "2026-03-25T20:22:41+00:00"
+}
