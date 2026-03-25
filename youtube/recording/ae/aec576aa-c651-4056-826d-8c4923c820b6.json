@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "aec576aa-c651-4056-826d-8c4923c820b6",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "TEotikBN5Bw",
+      "candidate_url": "https://www.youtube.com/watch?v=TEotikBN5Bw",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 251928,
+      "last_verified_at": "2026-03-25T18:45:50+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "TEotikBN5Bw"
+    }
+  ],
+  "updated_at": "2026-03-25T20:22:38+00:00"
+}
