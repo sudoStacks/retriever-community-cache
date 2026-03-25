@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "d77e4ef5-c94a-4727-ada1-d6f7a74c11f0",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "2M-LEAQPemQ",
+      "candidate_url": "https://www.youtube.com/watch?v=2M-LEAQPemQ",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 159360,
+      "last_verified_at": "2026-03-25T18:45:16+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "2M-LEAQPemQ"
+    }
+  ],
+  "updated_at": "2026-03-25T21:16:39+00:00"
+}
