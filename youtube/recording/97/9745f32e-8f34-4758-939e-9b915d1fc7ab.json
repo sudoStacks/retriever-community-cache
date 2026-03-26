@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "9745f32e-8f34-4758-939e-9b915d1fc7ab",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "13nD5ESRHMk",
+      "candidate_url": "https://www.youtube.com/watch?v=13nD5ESRHMk",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 202536,
+      "last_verified_at": "2026-03-25T18:38:10+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "13nD5ESRHMk"
+    }
+  ],
+  "updated_at": "2026-03-26T03:17:12+00:00"
+}
