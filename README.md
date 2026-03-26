@@ -60,7 +60,10 @@ Validation in `.github/workflows/validate.yml` enforces:
 - shard-path and filename/MBID consistency
 - duplicate MBID prevention in namespace
 - duplicate `video_id` prevention within a recording file
-- stats integrity via `scripts/generate_stats.py --check`
+- preview of derived dataset stats during CI
+
+Derived stats are maintained automatically on `main` by `.github/workflows/update_stats.yml`.
+Publish PRs are validated against the dataset contract itself; `stats/dataset.json` is regenerated after merges instead of blocking automated publisher PRs.
 
 Trusted PR automation in `.github/workflows/trusted_pr_automerge.yml` enables auto-merge for same-repo pull requests opened by publishers listed in `.github/trusted_publishers.txt`, once required checks pass.
 Additional publish policy lives in `.github/publish_policy.json`, including the minimum source confidence floor enforced by CI.

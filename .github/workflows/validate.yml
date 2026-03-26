@@ -174,5 +174,5 @@ jobs:
           print(f"Dataset validation passed. Checked {checked_files} dataset JSON file(s).")
           PY
 
-      - name: Check generated dataset stats
-        run: python scripts/generate_stats.py --check
+      - name: Preview generated dataset stats
+        run: python scripts/generate_stats.py
