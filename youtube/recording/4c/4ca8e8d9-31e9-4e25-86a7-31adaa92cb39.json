@@ -3,17 +3,17 @@
   "schema_version": 1,
   "sources": [
     {
-      "candidate_id": "7df9e2db72a1114c",
+      "candidate_id": "Ivim7VqgfCk",
       "candidate_url": "https://www.youtube.com/watch?v=Ivim7VqgfCk",
-      "confidence": 0.8768787153446184,
+      "confidence": 1.0,
       "duration_delta_ms": 0,
-      "duration_ms": 211240,
-      "last_verified_at": "2026-03-25T18:43:28+00:00",
-      "retreivr_version": "v0.9.16",
+      "duration_ms": 211271,
+      "last_verified_at": "2026-03-26T14:47:57+00:00",
+      "retreivr_version": "backfill",
       "source": "youtube",
-      "verified_by": "retreivr",
+      "verified_by": "retreivr_backfill",
       "video_id": "Ivim7VqgfCk"
     }
   ],
-  "updated_at": "2026-03-25T20:22:31+00:00"
+  "updated_at": "2026-03-26T15:24:30+00:00"
 }
