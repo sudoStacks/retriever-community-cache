@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "277da0b9-ddec-4af5-b1a9-bd69d59ac983",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "u2LlLHMpemo",
+      "candidate_url": "https://www.youtube.com/watch?v=u2LlLHMpemo",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 226296,
+      "last_verified_at": "2026-03-26T14:45:49+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "u2LlLHMpemo"
+    }
+  ],
+  "updated_at": "2026-03-26T15:24:15+00:00"
+}
