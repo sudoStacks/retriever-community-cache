@@ -1,0 +1,5 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Retreivr Community Cache README
+    url: https://github.com/sudoStacks/retreivr-community-cache/blob/main/README.md
+    about: Review publishing, trust, and dataset rules before opening an issue.

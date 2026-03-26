@@ -68,6 +68,28 @@ Publish PRs are validated against the dataset contract itself; `stats/dataset.js
 Trusted PR automation in `.github/workflows/trusted_pr_automerge.yml` enables auto-merge for same-repo pull requests opened by publishers listed in `.github/trusted_publishers.txt`, once required checks pass.
 Additional publish policy lives in `.github/publish_policy.json`, including the minimum source confidence floor enforced by CI.
 
+## Trusted Publisher Access
+
+Trusted publisher status controls who can use the fully automated same-repo PR and auto-merge flow.
+
+If you want to become a trusted publisher:
+
+1. Open a GitHub Issue in this repository.
+2. Title it `Trusted Publisher Request: <your-github-username>`.
+3. Include:
+   - your GitHub username
+   - how you run Retreivr
+   - whether you are publishing from a personal server, shared instance, or test node
+   - links to any prior good publish PRs if you have them
+   - anything relevant about how you validate your node outputs
+4. Wait for maintainers to review and, if approved, add your GitHub username to `.github/trusted_publishers.txt`.
+
+Until then:
+
+- you can still run Retreivr and generate publish proposals
+- maintainers may still review PRs manually
+- auto-merge is reserved for approved trusted publishers
+
 ## Purpose
 
 The dataset accelerates transport resolution for Retreivr clients while keeping output deterministic, lightweight, and Git-native.

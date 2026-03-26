@@ -1,4 +1,10 @@
-Proposal Submission
+---
+name: Legacy proposal submission
+about: Submit a legacy proposal issue for batch promotion workflows
+title: "Proposal: <recording-mbid> -> <video-id>"
+labels: proposal
+assignees: ""
+---
 
 Use this template for legacy trusted batch promotion proposals.
 Required label: `proposal`

@@ -24,3 +24,13 @@ Preferred automated flow:
 	•	A same-repo PR is opened
 	•	CI validates schema and policy gates
 	•	Trusted PR auto-merge handles publication to `main`
+
+Trusted publisher access:
+	•	Open a GitHub Issue titled `Trusted Publisher Request: <your-github-username>`
+	•	Describe how you run Retreivr and where your publish proposals come from
+	•	Include links to prior good PRs if available
+	•	Maintainers approve by adding your GitHub username to `.github/trusted_publishers.txt`
+
+Until approved:
+	•	You may still submit proposals or open PRs
+	•	Auto-merge is reserved for trusted publishers only
