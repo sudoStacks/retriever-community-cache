@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "b5fec118-701c-48fd-a3de-23fb088e09bf",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "FL3DU_sS98A",
+      "candidate_url": "https://www.youtube.com/watch?v=FL3DU_sS98A",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 271848,
+      "last_verified_at": "2026-03-25T18:46:15+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "FL3DU_sS98A"
+    }
+  ],
+  "updated_at": "2026-03-26T05:17:14+00:00"
+}
