@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "07c91d54-fc39-40eb-8d79-c555b721f617",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "yalPVRGEWAM",
+      "candidate_url": "https://www.youtube.com/watch?v=yalPVRGEWAM",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 241560,
+      "last_verified_at": "2026-03-26T14:44:53+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "yalPVRGEWAM"
+    }
+  ],
+  "updated_at": "2026-03-26T21:06:04+00:00"
+}
