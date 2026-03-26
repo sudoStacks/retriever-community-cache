@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "35e8932d-7784-415a-81ba-e6c2e2edc337",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "KmdAgLCGm6A",
+      "candidate_url": "https://www.youtube.com/watch?v=KmdAgLCGm6A",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 188664,
+      "last_verified_at": "2026-03-25T18:37:21+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "KmdAgLCGm6A"
+    }
+  ],
+  "updated_at": "2026-03-26T01:17:19+00:00"
+}
