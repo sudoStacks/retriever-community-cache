@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "6b5f07f9-ce03-4003-b99f-7c81920e84bc",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "vj7-2txcm50",
+      "candidate_url": "https://www.youtube.com/watch?v=vj7-2txcm50",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 214224,
+      "last_verified_at": "2026-03-25T18:42:54+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "vj7-2txcm50"
+    }
+  ],
+  "updated_at": "2026-03-26T01:17:18+00:00"
+}
