@@ -1,0 +1,19 @@
+{
+  "recording_mbid": "2589df43-230a-4439-a3a3-73620efdb02f",
+  "schema_version": 1,
+  "sources": [
+    {
+      "candidate_id": "MiSCFjQUwuY",
+      "candidate_url": "https://www.youtube.com/watch?v=MiSCFjQUwuY",
+      "confidence": 1.0,
+      "duration_delta_ms": 0,
+      "duration_ms": 237144,
+      "last_verified_at": "2026-03-26T14:42:44+00:00",
+      "retreivr_version": "backfill",
+      "source": "youtube",
+      "verified_by": "retreivr_backfill",
+      "video_id": "MiSCFjQUwuY"
+    }
+  ],
+  "updated_at": "2026-03-26T20:58:55+00:00"
+}
